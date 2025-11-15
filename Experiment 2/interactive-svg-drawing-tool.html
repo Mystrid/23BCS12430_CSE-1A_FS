@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Interactive SVG Drawing Tool</title>
+    <style>
+      :root {
+        --ui-bg: #f7f7fb;
+        --panel: #ffffff;
+        --accent: #2b6df6;
+        --muted: #666;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial;
+      }
+      body {
+        margin: 20px;
+        background: var(--ui-bg);
+        color: #111;
+        -webkit-font-smoothing: antialiased;
+      }
+      header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0;
+        font-weight: 600;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .panel {
+        background: var(--panel);
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(18, 22, 33, 0.06);
+      }
+      .controls label {
+        display: block;
+        margin: 8px 0 4px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .controls input[type="color"],
+      .controls input[type="range"],
+      .controls input[type="number"],
+      .controls select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #e6e9ef;
+        background: white;
+      }
+      .controls .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .controls .row > * {
+        flex: 1;
+      }
+      button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.ghost {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid #dfe6ff;
+        font-weight: 600;
+      }
+      .canvas-wrap {
+        background: var(--panel);
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(18, 22, 33, 0.06);
+        min-height: 420px;
+      }
+      #canvas {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        display: block;
+        touch-action: none; /* important for touch dragging */
+        background: linear-gradient(180deg, #fff, #fcfcff);
+      }
+      .status {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .footer {
+        margin-top: 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      small.hint {
+        color: #777;
+        display: block;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Interactive SVG Drawing Tool — Circles</h1>
+      <div style="margin-left: auto; color: var(--muted); font-size: 13px">
+        Click & drag to set radius • Ctrl+Z = Undo
+      </div>
+    </header>
+
+    <div class="app">
+      <aside class="panel controls" aria-label="Drawing controls">
+        <label>Mode</label>
+        <select id="mode">
+          <option value="circle">Draw Circle</option>
+        </select>
+
+        <label>Fill color</label>
+        <input
+          id="fillColor"
+          type="color"
+          value="#2b6df6"
+          aria-label="Fill color"
+        />
+
+        <label>Stroke color</label>
+        <input
+          id="strokeColor"
+          type="color"
+          value="#003a8c"
+          aria-label="Stroke color"
+        />
+
+        <label class="row">
+          <span style="flex: none; width: 130px">Stroke width</span>
+          <input
+            id="strokeWidth"
+            type="number"
+            min="0"
+            step="0.5"
+            value="1"
+            style="flex: 1"
+          />
+        </label>
+
+        <label class="row">
+          <span style="flex: none; width: 130px">Radius mode</span>
+          <select id="radiusMode" style="flex: 1">
+            <option value="dynamic">Dynamic (drag)</option>
+            <option value="fixed">Fixed radius</option>
+          </select>
+        </label>
+
+        <label>Fixed radius (px)</label>
+        <input id="fixedRadius" type="range" min="2" max="200" value="20" />
+
+        <div style="margin-top: 10px; display: flex; gap: 8px">
+          <button id="undoBtn" class="ghost">Undo</button>
+          <button id="clearBtn" class="ghost">Clear</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 8px">
+          <button id="downloadBtn">Download SVG</button>
+          <button id="exportPNG" class="ghost">Export PNG</button>
+        </div>
+
+        <div class="footer">
+          <div style="margin-top: 10px">
+            <strong>Tips</strong>
+            <small class="hint"
+              >Click to start, drag to size, release to finish. Use touch on
+              mobile. Use <em>Fixed radius</em> to place same-size
+              circles.</small
+            >
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <div class="canvas-wrap panel">
+          <svg
+            id="canvas"
+            viewBox="0 0 1000 800"
+            preserveAspectRatio="xMidYMid meet"
+            aria-label="Drawing canvas"
+            tabindex="0"
+          ></svg>
+          <div class="status" id="status">Ready — pointer at: —</div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      (function () {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const svg = document.getElementById("canvas");
+        const status = document.getElementById("status");
+
+        // UI elements
+        const fillColorEl = document.getElementById("fillColor");
+        const strokeColorEl = document.getElementById("strokeColor");
+        const strokeWidthEl = document.getElementById("strokeWidth");
+        const radiusModeEl = document.getElementById("radiusMode");
+        const fixedRadiusEl = document.getElementById("fixedRadius");
+        const undoBtn = document.getElementById("undoBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const exportPNGBtn = document.getElementById("exportPNG");
+
+        // State
+        let drawing = false;
+        let current = null; // the element being drawn
+        let startPoint = null; // {x,y} in svg coordinates
+        const undoStack = [];
+
+        // Helper: get SVG coords from client event (mouse or touch)
+        function getPointFromEvent(e) {
+          const rect = svg.getBoundingClientRect();
+          let clientX, clientY;
+          if (e.touches && e.touches[0]) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+          } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+          }
+          // Map client -> svg coordinate using viewBox scaling
+          const vb = svg.viewBox.baseVal;
+          const sx = (clientX - rect.left) / rect.width;
+          const sy = (clientY - rect.top) / rect.height;
+          const x = vb.x + sx * vb.width;
+          const y = vb.y + sy * vb.height;
+          return { x, y, clientX, clientY };
+        }
+
+        function updateStatus(text) {
+          status.textContent = text;
+        }
+
+        // Create a new circle element using createElementNS
+        function createCircle(x, y, r, fill, stroke, sw) {
+          const c = document.createElementNS(SVG_NS, "circle");
+          c.setAttribute("cx", String(x));
+          c.setAttribute("cy", String(y));
+          c.setAttribute("r", String(r));
+          c.setAttribute("fill", fill);
+          c.setAttribute("stroke", stroke);
+          c.setAttribute("stroke-width", String(sw));
+          // add a class for selection or future enhancements
+          c.classList.add("drawn-circle");
+          return c;
+        }
+
+        // Compute radius from start point and current
+        function distance(a, b) {
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // Start drawing
+        function startDrawing(e) {
+          e.preventDefault();
+          if (drawing) return;
+          const p = getPointFromEvent(e);
+          startPoint = { x: p.x, y: p.y };
+          drawing = true;
+
+          // initial radius: either fixed or near-zero
+          const mode = radiusModeEl.value;
+          const r = mode === "fixed" ? Number(fixedRadiusEl.value) : 0.1;
+
+          current = createCircle(
+            startPoint.x,
+            startPoint.y,
+            r,
+            fillColorEl.value,
+            strokeColorEl.value,
+            Number(strokeWidthEl.value)
+          );
+          svg.appendChild(current);
+          updateStatus(
+            `Drawing — start (${Math.round(startPoint.x)}, ${Math.round(
+              startPoint.y
+            )})`
+          );
+        }
+
+        // Continue drawing (mousemove / touchmove)
+        function moveDrawing(e) {
+          if (!drawing || !current) {
+            // update pointer coords anyway
+            const p = getPointFromEvent(e);
+            updateStatus(
+              `Ready — pointer at: ${Math.round(p.x)}, ${Math.round(p.y)}`
+            );
+            return;
+          }
+          const p = getPointFromEvent(e);
+          const mode = radiusModeEl.value;
+          let r;
+          if (mode === "fixed") {
+            r = Number(fixedRadiusEl.value);
+          } else {
+            r = distance(startPoint, p);
+          }
+          current.setAttribute("r", String(r));
+          updateStatus(`Drawing — radius ${Math.round(r)} px`);
+        }
+
+        // Finish drawing (mouseup / touchend)
+        function endDrawing(e) {
+          if (!drawing || !current) return;
+          // if radius is too small, remove it (click without drag)
+          const r = Number(current.getAttribute("r") || 0);
+          if (r < 0.5) {
+            svg.removeChild(current);
+            updateStatus("Cancelled (radius too small)");
+          } else {
+            // finalize: push to undo stack
+            undoStack.push(current);
+            updateStatus(
+              `Placed circle at (${Math.round(
+                current.getAttribute("cx")
+              )}, ${Math.round(current.getAttribute("cy"))}) r=${Math.round(r)}`
+            );
+          }
+          current = null;
+          drawing = false;
+          startPoint = null;
+        }
+
+        // Undo
+        function undo() {
+          const last = undoStack.pop();
+          if (last && svg.contains(last)) {
+            svg.removeChild(last);
+            updateStatus("Undo: removed last circle");
+          } else {
+            updateStatus("Nothing to undo");
+          }
+        }
+
+        // Clear all (keeps non-drawn content if any)
+        function clearAll() {
+          // remove all elements with class drawn-circle
+          const list = Array.from(svg.querySelectorAll(".drawn-circle"));
+          if (list.length === 0) {
+            updateStatus("Canvas already clear");
+            return;
+          }
+          list.forEach(el => el.remove());
+          undoStack.length = 0;
+          updateStatus("Cleared all drawings");
+        }
+
+        // Download SVG content as file
+        function downloadSVG() {
+          // Build pretty SVG string (serialize)
+          // Clone so we don't alter the live DOM
+          const clone = svg.cloneNode(true);
+          // Ensure width/height in exported svg metadata match viewBox (optional)
+          clone.setAttribute("xmlns", SVG_NS);
+          // Create XML string
+          const serializer = new XMLSerializer();
+          const svgString = serializer.serializeToString(clone);
+          const blob = new Blob([svgString], {
+            type: "image/svg+xml;charset=utf-8",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "drawing.svg";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          updateStatus("SVG downloaded");
+        }
+
+        // Export PNG (rasterize SVG to canvas and download)
+        function exportPNG() {
+          const clone = svg.cloneNode(true);
+          clone.setAttribute("xmlns", SVG_NS);
+          const serializer = new XMLSerializer();
+          const svgString = serializer.serializeToString(clone);
+          const img = new Image();
+          const svgBlob = new Blob([svgString], {
+            type: "image/svg+xml;charset=utf-8",
+          });
+          const url = URL.createObjectURL(svgBlob);
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            // Take from viewBox
+            const vb = svg.viewBox.baseVal;
+            canvas.width = vb.width;
+            canvas.height = vb.height;
+            const ctx = canvas.getContext("2d");
+            // white background
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            canvas.toBlob(blob => {
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "drawing.png";
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              updateStatus("PNG exported");
+            }, "image/png");
+          };
+          img.onerror = () => {
+            updateStatus("Failed to export PNG (CORS or serialization issue)");
+          };
+          img.src = url;
+        }
+
+        // Event listeners for mouse
+        svg.addEventListener("mousedown", e => {
+          // left button only
+          if (e.button !== 0) return;
+          startDrawing(e);
+        });
+        window.addEventListener("mousemove", moveDrawing);
+        window.addEventListener("mouseup", endDrawing);
+
+        // Touch support
+        svg.addEventListener("touchstart", e => startDrawing(e), {
+          passive: false,
+        });
+        window.addEventListener("touchmove", e => moveDrawing(e), {
+          passive: false,
+        });
+        window.addEventListener("touchend", e => endDrawing(e), {
+          passive: false,
+        });
+        window.addEventListener("touchcancel", e => endDrawing(e), {
+          passive: false,
+        });
+
+        // keep pointer coords when not drawing
+        svg.addEventListener("mousemove", e => {
+          const p = getPointFromEvent(e);
+          if (!drawing)
+            updateStatus(
+              `Ready — pointer at: ${Math.round(p.x)}, ${Math.round(p.y)}`
+            );
+        });
+
+        // UI actions
+        undoBtn.addEventListener("click", undo);
+        clearBtn.addEventListener("click", clearAll);
+        downloadBtn.addEventListener("click", downloadSVG);
+        exportPNGBtn.addEventListener("click", exportPNG);
+
+        // Ctrl+Z for undo (Cmd+Z on Mac)
+        window.addEventListener("keydown", e => {
+          const z = e.key === "z" || e.key === "Z";
+          if (z && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            undo();
+          }
+        });
+
+        // When stroke/fill changes we don't alter existing circles — only new ones use the selected colors.
+        // But we can offer a simple "apply to all" later.
+
+        // Initialize status
+        updateStatus("Ready — pointer at: —");
+
+        // Optional: keyboard shortcuts hint
+        // Accessible focus: allow drawing with keyboard? Not implemented (pointer-based).
+
+        // Keep UI responsive: when switching to fixed radius, show value in status
+        fixedRadiusEl.addEventListener("input", () => {
+          updateStatus(`Fixed radius set to ${fixedRadiusEl.value}px`);
+        });
+
+        // Prevent context menu on right-click inside SVG to avoid accidental menu during use
+        svg.addEventListener("contextmenu", e => {
+          e.preventDefault();
+        });
+      })();
+    </script>
+  </body>
+</html>

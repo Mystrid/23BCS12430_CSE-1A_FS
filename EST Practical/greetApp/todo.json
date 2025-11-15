@@ -1,0 +1,6 @@
+[
+  {"id":1,"title":"Create Welcome component","description":"Add `src/Welcome.jsx` that accepts `name` prop and shows default 'Guest' when missing.","status":"completed"},
+  {"id":2,"title":"Use component in App.jsx","description":"Import `Welcome` in `src/App.jsx` and render with an example prop.","status":"completed"},
+  {"id":3,"title":"Verify build (manual)","description":"Suggest commands to run the dev server to verify the component renders.","status":"not-started"},
+  {"id":4,"title":"Collect name from user input","description":"Update `src/App.jsx` to take the visitor name via a text field and pass it to `Welcome`.","status":"not-started"}
+]

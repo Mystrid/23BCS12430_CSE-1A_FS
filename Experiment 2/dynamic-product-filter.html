@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Product Filter</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f6f9;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      #filter {
+        display: block;
+        margin: 0 auto 30px;
+        padding: 8px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+
+      #products-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+        padding: 10px;
+      }
+
+      .product {
+        background: #fff;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .product:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .product img {
+        max-width: 100%;
+        height: 150px;
+        object-fit: contain;
+        margin-bottom: 15px;
+      }
+
+      .product h3 {
+        margin: 10px 0;
+        color: #444;
+      }
+
+      .product p {
+        font-size: 16px;
+        color: #555;
+      }
+
+      .price {
+        font-weight: bold;
+        color: #e63946;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛒 Our Products</h1>
+    <select id="filter">
+      <option value="all">All Products</option>
+      <option value="electronics">Electronics</option>
+      <option value="clothing">Clothing</option>
+      <option value="home">Home & Kitchen</option>
+      <option value="sports">Sports</option>
+    </select>
+    <div id="products-container"></div>
+
+    <script>
+      const products = [
+        {
+          name: "Laptop",
+          category: "electronics",
+          price: 59999,
+          img: "https://media-ik.croma.com/prod/https://media.tatacroma.com/Croma%20Assets/Computers%20Peripherals/Laptop/Images/311740_0_qzerkq.png",
+        },
+        {
+          name: "Smartphone",
+          category: "electronics",
+          price: 24999,
+          img: "https://cdn.beebom.com/mobile/xiaomi-15-pro/xiaomi-15-pro-gray.png",
+        },
+        {
+          name: "Headphones",
+          category: "electronics",
+          price: 2999,
+          img: "https://sony.scene7.com/is/image/sonyglobalsolutions/wh-ch720_Primary_image?$categorypdpnav$&fmt=png-alpha",
+        },
+        {
+          name: "Shirt",
+          category: "clothing",
+          price: 999,
+          img: "https://pngimg.com/d/dress_shirt_PNG8092.png",
+        },
+        {
+          name: "Jeans",
+          category: "clothing",
+          price: 1999,
+          img: "https://www.pngplay.com/wp-content/uploads/12/Jeans-Transparent-Free-PNG-Clip-Art.png",
+        },
+        {
+          name: "Jacket",
+          category: "clothing",
+          price: 3499,
+          img: "https://static.vecteezy.com/system/resources/previews/043/023/976/non_2x/sporty-black-track-jacket-with-zipper-free-png.png",
+        },
+        {
+          name: "Mixer Grinder",
+          category: "home",
+          price: 4599,
+          img: "https://pngfre.com/wp-content/uploads/Mixer-Grinder-2-1024x1024.png",
+        },
+        {
+          name: "Cookware Set",
+          category: "home",
+          price: 2599,
+          img: "https://crdms.images.consumerreports.org/prod/products/cr/models/399917-cookware-sets-nonstick-amazonbasics-non-stick-kitchen-cookware-set-lffp16027-10008925.png",
+        },
+        {
+          name: "Yoga Mat",
+          category: "sports",
+          price: 899,
+          img: "https://instamart-media-assets.swiggy.com/swiggy/image/upload/fl_lossy,f_auto,q_auto/NI_CATALOG/IMAGES/CIW/2024/8/1/91ed1bf0-66c9-4387-892d-da7653ac7ab4_74131_1.png",
+        },
+        {
+          name: "Football",
+          category: "sports",
+          price: 699,
+          img: "https://gallery.yopriceville.com/downloadfullsize/send/26456",
+        },
+      ];
+
+      document.getElementById("filter").addEventListener("change", e => {
+        const selected = e.target.value;
+        const filtered =
+          selected === "all"
+            ? products
+            : products.filter(p => p.category === selected);
+        renderProducts(filtered);
+      });
+
+      function renderProducts(products) {
+        const container = document.getElementById("products-container");
+        container.innerHTML = products
+          .map(
+            p => `
+          <div class="product">
+            <img src="${p.img}" alt="${p.name}">
+            <h3>${p.name}</h3>
+            <p class="price">₹${p.price.toLocaleString("en-IN")}</p>
+          </div>
+      `
+          )
+          .join("");
+      }
+
+      renderProducts(products);
+    </script>
+  </body>
+</html>
